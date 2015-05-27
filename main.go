@@ -10,6 +10,12 @@ import (
 	"text/template"
 
 	"github.com/apackeer/trace"
+	"github.com/stretchr/gomniauth"
+	"github.com/stretchr/gomniauth/providers/facebook"
+	"github.com/stretchr/gomniauth/providers/github"
+	"github.com/stretchr/gomniauth/providers/google"
+	"github.com/stretchr/objx"
+	"github.com/stretchr/signature"
 )
 
 // templ represents a single template
@@ -28,14 +34,34 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.once.Do(func() {
 		t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
 	})
+
+	data := map[string]interface{}{
+		"Host": r.Host,
+	}
+	if authCookie, err := r.Cookie("auth"); err == nil {
+		data["UserData"] = objx.MustFromBase64(authCookie.Value)
+	}
 	// This tells the template to render itself using data that can be extracted
 	// from http.Request, which happens to include the host address that we need.
-	t.templ.Execute(w, r)
+	// Also added User data to a data map that holds this host and user info
+	// from authentication
+	t.templ.Execute(w, data)
 }
 
 func main() {
 	var addr = flag.String("addr", ":8080", "The addr of the application.")
 	flag.Parse() // parse the flags
+
+	// set up gomniauth
+	gomniauth.SetSecurityKey(signature.RandomKey(64))
+	gomniauth.WithProviders(
+		facebook.New("key", "secret",
+			"http://localhost:8080/auth/callback/facebook"),
+		github.New("key", "secret",
+			"http://localhost:8080/auth/callback/github"),
+		google.New("211449155586-sdq8ij7tdjb464b8cs0umlacn31pjt9i.apps.googleusercontent.com", "MgTwJgOSRml4SW0j-imlTWq9",
+			"http://localhost:8080/auth/callback/google"),
+	)
 
 	// Create a new room instance.
 	r := newRoom()
