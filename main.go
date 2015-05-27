@@ -41,11 +41,15 @@ func main() {
 	r := newRoom()
 	r.tracer = trace.New(os.Stdout)
 
+	http.Handle("/assets/", http.StripPrefix("/assets", http.FileServer(http.Dir("./assets"))))
+
 	// Give the Hanlde function an templateHander object that has the ServeHTTP
 	// function defined as per the http.Handler interface which specifies only
 	// the ServeHTTP method need to be present in order for a type (class) to be
 	// used to serve HTTP requests by net/http
-	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat.html"}))
+
+	http.Handle("/login", &templateHandler{filename: "login.html"})
 
 	// r (Room instance) has ServeHTTP function, which creates a client and then
 	// passes it to the join channel of the room.
